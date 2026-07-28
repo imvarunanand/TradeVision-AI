@@ -62,6 +62,6 @@ class IndicatorSnapshot {
 
   @override
   String toString() {
-    return 'IndicatorSnapshot(candleTime: $candleTime, ema20: $ema20, ema50: $ema50, bollU: $bollingerUpper, bollM: $bollingerMiddle, bollL: $bollingerLower, rsi: $rsi, stoK: $stochasticK, stoD: $stochasticD, atr: $atr)';
+    return 'IndicatorSnapshot(candleTime: $candleTime, ema20: $ema20, ema50: $ema50, bollingerUpper: $bollingerUpper, bollingerMiddle: $bollingerMiddle, bollingerLower: $bollingerLower, rsi: $rsi, stochasticK: $stochasticK, stochasticD: $stochasticD, atr: $atr)';
   }
 }
