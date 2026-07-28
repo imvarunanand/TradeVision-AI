@@ -69,6 +69,12 @@ class EMAIndicator implements Indicator<double> {
     // EMA formula: EMA_today = (Close_today - EMA_yesterday) * multiplier + EMA_yesterday
     _ema = (close - _ema!) * _multiplier + _ema!;
   }
+
+  @override
+  void reset() {
+    _ema = null;
+    _initialized = false;
+  }
 }
 
 /// Thin wrappers for common lengths
