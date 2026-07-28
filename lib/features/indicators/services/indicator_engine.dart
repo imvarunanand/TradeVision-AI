@@ -4,9 +4,9 @@ import 'dart:async';
 
 import '../../market/domain/entities/candle.dart';
 import '../../market/services/candle_builder.dart';
-import '../../market/services/candle_builder.dart' as cbshow; // for types
 import '../domain/indicator_snapshot.dart';
 import '../domain/indicator.dart';
+import '../domain/ema_indicator.dart';
 
 /// Engine responsible for wiring indicators to CandleBuilder events.
 ///
@@ -15,17 +15,24 @@ import '../domain/indicator.dart';
 /// - Maintain incremental indicators and update only on new completed candles
 /// - Cache the latest IndicatorSnapshot per symbol/timeframe
 class IndicatorEngine {
-  final CandleBuilderConfig config;
-  final Stream<CandleEvent> _events;
+  final CandleBuilder _builder;
 
   StreamSubscription<CandleEvent>? _sub;
   IndicatorSnapshot? _latest;
   final _snapshotController = StreamController<IndicatorSnapshot?>.broadcast();
 
-  // indicator instances will be added later; for now we keep placeholders
+  // registered indicators
   final List<Indicator<dynamic>> _indicators = [];
 
-  IndicatorEngine(this.config, this._events);
+  // concrete EMA references for snapshot reads
+  final EMA20Indicator _ema20 = EMA20Indicator();
+  final EMA50Indicator _ema50 = EMA50Indicator();
+
+  IndicatorEngine(this._builder) {
+    // auto-register EMAs
+    registerIndicator(_ema20);
+    registerIndicator(_ema50);
+  }
 
   /// Broadcast stream of latest snapshots. Emits whenever the latest snapshot updates.
   Stream<IndicatorSnapshot?> get snapshots => _snapshotController.stream;
@@ -34,17 +41,62 @@ class IndicatorEngine {
   IndicatorSnapshot? get latestSnapshot => _latest;
 
   /// Start listening to candle events. Calling start() multiple times is a no-op.
-  void start() {
+  /// Will reset indicators, warm them using existing builder.candles, and then
+  /// subscribe to completed candle events to update incrementally.
+  Future<void> start() async {
     if (_sub != null) return;
-    _sub = _events.listen(_onEvent, onError: (e) {
-      // emit error snapshot? currently notify via controller with null or keep last
-    });
+
+    // reset indicators
+    for (final ind in _indicators) {
+      try {
+        ind.reset();
+      } catch (_) {}
+    }
+
+    // Warm-up using history from CandleBuilder (chronological order).
+    try {
+      final history = _builder.candles;
+      _ema20.calculate(history);
+      _ema50.calculate(history);
+    } catch (_) {
+      // ignore warm-up failures
+    }
+
+    _sub = _builder.events.listen((ev) {
+      if (ev.type != CandleEventType.completed) return;
+      final c = ev.candle;
+      if (c == null) return;
+
+      for (final ind in _indicators) {
+        try {
+          ind.update(c);
+        } catch (_) {}
+      }
+
+      final ema20v = _ema20.value ?? double.nan;
+      final ema50v = _ema50.value ?? double.nan;
+
+      _latest = IndicatorSnapshot(
+        candleTime: c.start,
+        ema20: ema20v,
+        ema50: ema50v,
+      );
+      _snapshotController.add(_latest);
+    }, onError: (e) {
+      // swallow errors
+    }, cancelOnError: false);
   }
 
-  /// Stop listening and free resources.
+  /// Stop listening and free resources. Reset indicators.
   Future<void> stop() async {
     await _sub?.cancel();
     _sub = null;
+
+    for (final ind in _indicators) {
+      try {
+        ind.reset();
+      } catch (_) {}
+    }
   }
 
   Future<void> dispose() async {
@@ -52,30 +104,7 @@ class IndicatorEngine {
     await _snapshotController.close();
   }
 
-  void _onEvent(CandleEvent ev) {
-    if (ev.type != CandleEventType.completed) return; // only completed
-    final c = ev.candle;
-    if (c == null) return;
-
-    // For now we do not perform calculations; we only update the candleTime
-    // and push an empty snapshot. Indicator implementations will update
-    // incremental values via update().
-    _latest = IndicatorSnapshot(candleTime: c.start);
-    _snapshotController.add(_latest);
-
-    // Call update on indicators with the completed candle (incremental updates)
-    for (final ind in _indicators) {
-      try {
-        ind.update(c);
-      } catch (_) {
-        // swallow for now; individual indicators should handle their own errors
-      }
-    }
-  }
-
-  /// Register an indicator instance to be updated by the engine. Indicators
-  /// should be created elsewhere and passed in. Order of registration matters
-  /// if indicators depend on each other.
+  /// Register an indicator instance to be updated by the engine.
   void registerIndicator(Indicator<dynamic> indicator) {
     _indicators.add(indicator);
   }
