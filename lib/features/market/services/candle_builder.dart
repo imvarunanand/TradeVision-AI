@@ -51,11 +51,16 @@ class CandleBuilderConfig {
     return other is CandleBuilderConfig &&
         other.symbol == symbol &&
         other.timeframe == timeframe &&
-        other.maxCandles == maxCandles;
+        other.maxCandles == maxCandles &&
+        // Include tickSource and historyProvider in identity so provider.family
+        // keys are stable and do not accidentally collide when different
+        // sources/providers are used.
+        other.tickSource == tickSource &&
+        other.historyProvider == historyProvider;
   }
 
   @override
-  int get hashCode => Object.hash(symbol, timeframe, maxCandles);
+  int get hashCode => Object.hash(symbol, timeframe, maxCandles, tickSource, historyProvider);
 }
 
 /// Builds timeframe-aligned candles from a generic [TickSource].
