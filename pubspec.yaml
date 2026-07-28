@@ -1,0 +1,31 @@
+name: tradevision_ai
+description: TradeVision AI — Clean Architecture Flutter scaffold
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: ">=2.18.0 <4.0.0"
+  flutter: ">=3.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_local_notifications: ^12.0.4
+  flutter_riverpod: ^2.3.6
+  dio: ^5.1.2
+  drift: ^2.4.0
+  drift_flutter: ^2.4.0
+  path_provider: ^2.0.15
+  fl_chart: ^0.60.0
+  intl: ^0.18.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  build_runner: ^2.4.4
+  drift_dev: ^2.4.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
