@@ -10,7 +10,8 @@ import '../domain/indicator_snapshot.dart';
 /// The engine is constructed and can be started explicitly via engine.start().
 final indicatorEngineProvider = Provider.family<IndicatorEngine, CandleBuilderConfig>((ref, cfg) {
   final builder = ref.read(candleBuilderProvider(cfg));
-  final engine = IndicatorEngine(cfg, builder.events);
+  // IndicatorEngine expects the CandleBuilder instance
+  final engine = IndicatorEngine(builder);
   ref.onDispose(() => engine.dispose());
   return engine;
 });
